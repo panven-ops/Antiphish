@@ -128,10 +128,10 @@ Both are running in parallel using asyncio for quicker results and more efficien
 
 ### Scoring
 - Each potential threat has a score. 
-- Total score is being generated from all the potential threats a text possess.
+- Total score is being generated from all the potential threats a text possesses.
 - Verdict is given in the end of the scan, where:
 
-    - safe: 0 < total_score <= 20
+    - safe: total_score <= 20
     - suspicious: 20 < total_score <= 50
     - dangerous: total_score > 50
 
