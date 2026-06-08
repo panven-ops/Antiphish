@@ -53,9 +53,15 @@ To run this project two environment variables are needed cause of the external A
 - URLhaus: `URL_HAUS_KEY`
 
 
+
+## Installation
+Clone the repository
+```bash
+git clone https://github.com/panven-ops/Antiphish.git
+cd Antiphish
+```
+
 ### Run Locally
-
-
 
 Start the backend
 
