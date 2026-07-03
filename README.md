@@ -4,6 +4,22 @@
 A web app that scans emails or phones for phishing and scamming content.
 
 
+## Screenshots
+
+### Main Page
+![Main Page](screenshots/Antiphish_Mainpage.png)
+
+### Dangerous - Phishing mail with malicious IP
+- Note: The used IP is already flagged from URLhaus, don't use it.
+![Dangerous Email](screenshots/Antiphish_dangerous_mail.png)
+
+### Safe - Legitimate mail
+![Safe Email](screenshots/Antiphish_safe_mail.png)
+
+### Dangerous - Scam phone number
+![Dangerous Phone Number](screenshots/Antiphish_scam_phone.png)
+
+
 ## Features
 
 - Input Type: email or phone
@@ -18,7 +34,9 @@ A web app that scans emails or phones for phishing and scamming content.
 
 **Backend:** FastAPI, httpx, pydantic, asyncio
 
-**External-APIs:** VirusTotal, URLhaus
+**External-APIs:** VirusTotal, URLhaus, urlscan.io
+
+**Fuzzy Matching:** Levenshtein
 
 
 ## Project Structure
@@ -31,6 +49,7 @@ backend/
 - checkings/
     - static_rules.py
     - external_apis.py
+    - keywords_synonyms.py
 
 frontend/
 
@@ -42,16 +61,16 @@ frontend/
 
 - Python 3.12
 - Node.js + Vite -> React.js
-- API keys for VirusTotal and URLhaus
+- API keys for VirusTotal, URLhaus and urlscan.io
 
 
 ### Environment Variables
 
-To run this project two environment variables are needed cause of the external API calls that are made to VirusTotal and URLhaus.
+To run this project three environment variables are needed cause of the external API calls that are made to VirusTotal, URLhaus and urlscan.io.
 
 - VirusTotal: `VIRUS_API_KEY`
 - URLhaus: `URL_HAUS_KEY`
-
+- urlscan.io: `URL_SCAN_KEY`
 
 
 ## Installation
@@ -120,11 +139,14 @@ It scans the text in accordance to the input_type.
 
 ### External API calls
 Scans the text with the help of external tools VirusTotal and URLhaus.
--VirusTotal: checks if the domain has been flagged by security vendors.
+- VirusTotal: checks if the domain has been flagged by security vendors.
 
--URLhaus: checks if the scanned URL is being listed as active malware.
+- URLhaus: checks if the scanned URL is being listed as active malware.
 
-Both are running in parallel using asyncio for quicker results and more efficiency.
+- urlscan.io: submits the URL to a live sandbox and polls for a verdict based on rendered page behavior.
+Note: since it analyzes webpage rendering, it may not flag threats served as raw file downloads (e.g. malware binaries hosted directly on an IP).
+
+All three run in parallel using asyncio for quicker results and more efficiency.
 
 ### Scoring
 - Each potential threat has a score. 
@@ -135,6 +157,9 @@ Both are running in parallel using asyncio for quicker results and more efficien
     - suspicious: 20 < total_score <= 50
     - dangerous: total_score > 50
 
+## Known Limitations
+- Fuzzy keyword matching improves recall on paraphrased phishing language but is not exhaustive; some paraphrases with no lexical or synonym overlap with known keywords can still be missed.
+- urlscan.io evaluates rendered page behavior and may not catch threats that don't involve a rendered webpage (e.g. direct file/malware downloads).
 
 ## License
 

@@ -1,6 +1,9 @@
 import re
 import Levenshtein
+import ipaddress
 from models import CheckResult
+from checkings.keywords_synonyms import normalize
+
 
 KNOWN_BRANDS = [
     "paypal", "amazon", "apple", "google", "microsoft",
@@ -18,6 +21,29 @@ SCAM_PHONE_PREFIXES = [
     "+92", "+234", "+254", "+233", "+256",  # Pakistan, Nigeria, Kenya, Ghana, Uganda
     "+91", "+855", "+66",                    # India, Cambodia, Thailand (scam hubs)
 ]
+
+STOPWORDS = {"your", "you", "to", "in", "on", "the", "a", "an", "is", "has", "been", "and", "of", "for"}
+
+
+FUZZY_RATIO = 0.7
+
+def strip_stopwords(phrase: str) -> str:
+    return " ".join(w for w in phrase.split() if w not in STOPWORDS)
+
+
+def is_ip_address(value: str) -> bool:
+    try:
+        ipaddress.ip_address(value)
+        return True
+    except ValueError:
+        return False
+
+def strip_port(value: str) -> str:
+    parts = value.rsplit(":", 1)
+    if len(parts) == 2 and parts[1].isdigit():
+        return parts[0]
+    return value
+
 
 def normalize_domain(domain: str) -> str:
     replacements = { "0": "o", "1": "l", "3": "e", "5": "s", "@": "a" }
@@ -99,21 +125,52 @@ def check_brand_impersonation(text: str) -> CheckResult:
                 detail = "No brand impersonation detected")
 
 def check_keywords(text: str) -> CheckResult:
-    text_lower = text.lower()
-    found = [kw for kw in PHISHING_KEYWORDS if kw in text_lower]
+    words = re.findall(r"[a-z']+", text.lower())
+    found = []
+
+    for phrase in PHISHING_KEYWORDS:
+        phrase_words = phrase.split()
+        window_size = len(phrase_words)
+
+        if len(phrase) < 5:
+            if phrase in text.lower():
+                found.append(phrase)
+            continue
+
+        phrase_core = normalize(strip_stopwords(phrase))
+        if not phrase_core:
+            continue
+
+        matched = False
+        best_ratio = 0.0
+        for i in range(len(words) - window_size + 1):
+            window = " ".join(words[i:i + window_size])
+            window_core = normalize(strip_stopwords(window))
+
+            if not window_core:
+                continue
+
+            ratio = Levenshtein.ratio(window_core, phrase_core)
+            if ratio > best_ratio:
+                best_ratio = ratio
+            if ratio >= FUZZY_RATIO:
+                matched = True
+                break
+
+        if matched:
+            found.append(phrase)
 
     if found:
         score = min(len(found) * 10, 30)
+        return CheckResult(name="suspicious_keywords",
+                           passed=False,
+                           score=score,
+                           detail=f"Found: {', '.join(found)}")
 
-        return CheckResult(name = "suspicious_keywords",
-                           passed = False,
-                           score = score,
-                           detail = f"Found: {', '.join(found)}")
-
-    return CheckResult(name = "suspicious_keywords",
-                       passed = True,
-                       score = 0,
-                       detail = "No suspicious keywords found in the text")
+    return CheckResult(name="suspicious_keywords",
+                       passed=True,
+                       score=0,
+                       detail="No suspicious keywords found in the text")
 
 def check_phone_prefix(text: str) -> CheckResult:
 
